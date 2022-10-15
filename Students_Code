@@ -1,0 +1,95 @@
+# Import libraries, set directory and read the file
+
+import pandas as pd
+import os
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy import stats
+from sklearn.linear_model import LinearRegression
+lm = LinearRegression()
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix
+
+#Lets check if we are in correct directory
+os.getcwd()
+
+#As our file is in different directory lets change the directory to access the file
+os.chdir("C:\\Users\\tural\\OneDrive\\Desktop\\Study Materials\\Datasets")
+
+#Now we can read our dataset to start our job
+df = pd.read_csv("StudentsPerformance.csv")
+
+# Explore and Clean the Data
+
+df.head()
+
+df.info()
+
+#Checking wether we have some NA values or not
+df.isna().sum()
+
+df.columns
+
+#Renaming columns to be able to work easier
+df.rename(columns = {'race/ethnicity':'race'}, inplace = True)
+df.rename(columns = {'parental level of education':'parents_education'}, inplace = True)
+df.rename(columns = {'test preparation course':'prep_course'}, inplace = True)
+df.columns = df.columns.str.replace(' ', '_')
+
+#parents education seems to be a bit messy so lets check the unique values and see if we can organize it more
+pd.unique(df['parents_education'])
+
+#Renaming some strings inside of data frame to look more organized
+df = df.replace('some ','', regex=True)
+df = df.replace(' degree', '', regex=True)
+
+# Descriptive Statistics
+
+# Before starting the descriptive statistics lets create a column which will be the average score of each student from 3 exams
+df['avg_score'] = np.mean(df, axis = 1)
+df = df.round(1)
+
+df.head()
+
+df.describe()
+
+# Lets create a box plot for avg score based on gender
+sns.boxplot(x = 'gender', y = 'avg_score', data = df)
+
+#Lets go a bit deeper to see the differences in each exam
+df.groupby('gender').describe()['math_score']
+
+df.groupby('gender').describe()['writing_score']
+
+df.groupby('gender').describe()['reading_score']
+
+df.groupby('race').describe()['avg_score']
+
+#Lets turn our categorical parent's education level to numeric.
+df['parents_education'].replace(['high school', "associate's", 'college', "bachelor's", "master's"], [1, 2, 3, 4, 5], inplace=True)
+
+sns.boxplot(x = df['parents_education'], y = df['avg_score'])
+
+#Lets create a scatter plot with regression line to get sense if writing and reading is related to each other
+sns.regplot(x = df['writing_score'], y = df['reading_score'], data = df, line_kws={"color": "black"})
+
+#Lets see the peaarson coefficient and p statistic value to see if the correlation is statistically significant or not(we can see below strong positive relationship which is statistically significant)
+pearson_coef, p_value = stats.pearsonr(df['writing_score'], df['reading_score'])
+print(pearson_coef, p_value)
+
+# Linear Model Development
+
+#Lets develop our model and then show our equation for predicting the writing score
+X = df[['reading_score']]
+Y = df['writing_score']
+lm.fit(X, Y)
+Yhat = lm.predict(X)
+print ("writing_score = ", "reading_score", "*", lm.coef_, "+", lm.intercept_)
+
+#As the residuals are evenly distributed along the mean axes we can conclude that linear model is a great fit to our data.
+sns.residplot(df['reading_score'], df['writing_score'])
+
+# Finally lets draw a distribution plot in order to compare the actual writing score with our linear model that we developed based on reading.
+ax1 = sns.distplot(df['writing_score'], hist = False, color = 'r', label = "Actual Writing Scores")
+sns.distplot(Yhat, hist= False, color = 'b', label = "Fitted Value", ax = ax1)
