@@ -1,0 +1,145 @@
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy import stats
+from sklearn.linear_model import LinearRegression
+lm = LinearRegression()
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix
+
+# The aim of this project is to find the impact of different factors to number of car sales and also the price of the cars
+
+# Data Exploring and Cleaning
+
+df = pd.read_csv('Car_sales.csv')
+
+df.info()
+
+df.isna().sum()
+
+# Dropping NA values, lowering the column names, changing the necessary column name to work with it easily. Note that sales and prices are with thousands
+df.dropna(inplace=True)
+df.columns = df.columns.str.lower()
+df.rename(columns = {'__year_resale_value': 'resale_value'}, inplace=True)
+df.rename(columns = {'sales_in_thousands': 'sales'}, inplace=True)
+df.rename(columns = {'price_in_thousands': 'price'}, inplace=True)
+df.rename(columns = {'sales_in_thousands': 'sales'}, inplace=True)
+df.rename(columns = {'power_perf_factor': 'performance_factor'}, inplace=True)
+
+
+df.replace(to_replace="Car", value="Non-Passenger", inplace= True)
+
+# Explaratory Data Analysis
+
+df = df.round(1)
+df.head()
+
+
+
+# Which manufacturer sold most and least
+df.groupby('manufacturer').sum()['sales'].sort_values(ascending = False)
+
+df.head()
+
+# Lets check the descriptive sales numbers by vehicle type
+sns.boxplot(x = 'vehicle_type', y = 'sales', data = df)
+
+# Lets check the descriptive price by vehicle type
+sns.boxplot(x = 'vehicle_type', y = 'price', data = df)
+
+# Lets create a subset of our date frame which has only the numeric values that we can investigate teh correlations
+df_numeric = df.drop(['manufacturer', 'model','vehicle_type', 'latest_launch'], axis = 1)
+
+sns.set(rc = {'figure.figsize':(17,10)})
+sns.heatmap(df_numeric.corr(), annot = True)
+
+
+
+# Linear & Logistic regression Development
+
+# Question 1 : Lets choose price as our target variable, engine_size, horsepower, performance_factor as predictor and try to predict the price
+
+
+#lETS START WITH Question 1 and get the scatter plots to have overview on the data visually
+
+fig, ax = plt.subplots(3, figsize=(10,20))
+ax[0].scatter(x = df['engine_size'], y = df['price'], )
+ax[0].set_xlabel("engine_size")
+ax[0].set_ylabel("price")
+print(" For the first plot pearson coefficient is", pearson_coef, "p value is", p_value)
+
+
+ax[1].scatter(x = df['horsepower'], y = df['price'])
+ax[1].set_xlabel("horsepower")
+ax[1].set_ylabel("price")
+print(" For the second plot pearson coefficient is", pearson_coef1, "p value is", p_value1)
+
+ax[2].scatter(x = df['performance_factor'], y = df['price'])
+ax[2].set_xlabel("performance_factor")
+ax[2].set_ylabel("price")
+print(" For the third plot pearson coefficient is", pearson_coef2, "p value is", p_value2)
+
+plt.show()
+
+# Now lets create the pearson coefficient and also the p-value to see if the correlation is strong enough and then paste it to above scatter plot
+pearson_coef, p_value = stats.pearsonr(df['engine_size'], df['price'])
+pearson_coef1, p_value1 = stats.pearsonr(df['horsepower'], df['price'])
+pearson_coef2, p_value2 = stats.pearsonr(df['performance_factor'], df['price'])
+
+
+
+# Now lets create our linear regression model and find the coeffiecn and intercept
+X = df[['performance_factor', 'horsepower']]
+Y = df['price']
+lm.fit(X, Y)
+Yhat = lm.predict(X)
+print (lm.coef_, lm.intercept_)
+
+#Here are the predictions
+Yhat
+
+#Now lets have a look to residualplots in order to see if they are distributed evenly around x or not
+sns.residplot(df['horsepower'], df['price'])
+
+sns.residplot(df['performance_factor'], df['price'])
+
+# Finally lets draw a distribution plot in order to compare the actual prices with our linear model that we developed based on performance and horsepower
+ax1 = sns.distplot(df['price'], hist = False, color = 'r', label = "Actual Price")
+sns.distplot(Yhat, hist= False, color = 'b', label = "Fitted Value", ax = ax1)
+
+
+
+# As it can be seen above, our model is near to perfect!
+
+
+
+# Question 2 Lets try to estimate the number of sales based on vehicle type using Logistic Regression
+
+Passenger is 1
+Non Passenger is 0
+
+df.groupby('vehicle_type').sum()['sales']
+
+
+
+#Lets create the training and testing dataset, then create a logistic regreession model and try to fit it. Afterwards we can show the predictions
+x = df[['sales']]
+y = df['vehicle_type']
+model = LogisticRegression(solver='liblinear', random_state=0)
+model.fit(x,y)
+model.predict(x)
+
+model.predict_proba(x)
+
+model.score(x, y)
+
+#4 times model predicted non-passenger correctly
+#3 times model predicted non-passengers incorrectly instead of passenger
+#25 times model predicted passenger incorreclty instead of non - passenger
+#85 times mdoel predicted passenger correctly
+confusion_matrix(y, model.predict(x))
+
+# Conclusion
+
+As we can see from the above there is some relationship between vehicle type and number of sales, also our model has 7.6 acccuracty out of 10 whihc is not ideal. We can predict the sales of cars but not with a great accuracy with this model
