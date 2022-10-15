@@ -123,7 +123,7 @@ df.groupby('vehicle_type').sum()['sales']
 
 
 
-#Lets create the training and testing dataset, then create a logistic regreession model and try to fit it. Afterwards we can show the predictions
+#Lets create a logistic regreession model and try to fit it. Afterwards we can show the predictions
 x = df[['sales']]
 y = df['vehicle_type']
 model = LogisticRegression(solver='liblinear', random_state=0)
