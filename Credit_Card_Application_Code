@@ -1,0 +1,55 @@
+import pandas as pd
+import numpy as np
+import os
+from datetime import datetime, timedelta
+import datetime
+
+# Exploring and Cleaning the Data
+
+os.getcwd()
+
+os.chdir("C:\\Users\\tural\\OneDrive\\Desktop\\Study Materials\\Datasets")
+df = pd.read_csv("application_record.csv")
+df.head()
+
+#Lets first change the column names that we can work easily
+df.columns = df.columns.str.lower()
+df.columns = df.columns.str.replace('name_','',regex=True)
+df.columns = df.columns.str.replace('flag_','',regex=True)
+df.columns = df.columns.str.replace('amt_','',regex=True)
+df.columns = df.columns.str.replace('cnt_','',regex=True)
+df.columns = df.columns.str.replace('code_','',regex=True)
+df.rename(columns = {'days_birth':'birthdate', 'days_employed':'employed_since', 'months_balance':'recorded_month'}, inplace = True)
+
+#Lets get some info on dataframe
+df.info()
+
+#Now lets check the number of rows and also the unique customers to see if we should clean it
+df.id.nunique()
+
+#Apparently there are some duplicates, lets clean them. As we have some different id having the rest of the information same, we assume that one customer have multiple IDs. Lets drop them as well.
+df = df.drop_duplicates(subset='id', keep="last")
+df = df.set_index('id')
+df = df.drop_duplicates(keep='first')
+
+#Now we will create a function which will retrieve the birthday based on the given numbers on birthdate and employed_since column
+def birth(total_days):
+    today = datetime.date.today()
+    birthday = (today + timedelta(days=total_days)).strftime('%Y-%m-%d')
+    return birthday
+
+df['birthdate']=df['birthdate'].apply(Date_of_Birth)
+
+#We will do the same for finding the employment dates
+def employed(total_days):
+    today = datetime.date.today()
+    employed_date = (today + datetime.timedelta(days=total_days)).strftime('%Y-%m-%d')
+    
+df['employed_since']=df['employed_since'].apply(Date_of_Birth)
+
+#Lets convert the some of the floats into integers as we are sure that they cannot be floats.
+df['children'] = df['children'].astype(int)
+df['fam_members'] = df['fam_members'].astype(int)
+df.head()
+
+Analysis and ML model is in progress...
