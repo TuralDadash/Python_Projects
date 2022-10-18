@@ -1,0 +1,78 @@
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.datasets import make_classification
+from sklearn.tree import DecisionTreeClassifier
+%matplotlib inline
+
+# Explore and Clean the Data
+
+os.getcwd()
+
+os.chdir("C:\\Users\\tural\\OneDrive\\Desktop\\Study Materials\\Datasets")
+
+df = pd.read_csv("WineQT.csv")
+df.head(20)
+
+df.info()
+
+a = np.arange(1143)
+df['Id'] = a
+df.columns = df.columns.str.lower()
+df.columns = df.columns.str.replace(' ', '_')
+df.columns = df.columns.str.replace('_dioxide', '')
+df.round(3)
+
+
+
+# Descriptive Statistics
+
+df.value_counts('quality')
+
+sns.set(rc = {'figure.figsize':(17,10)})
+sns.heatmap(df.corr(), annot = True)
+
+Lets create groups for quality and divide it into 2 groups which are poor quality(0) and good quality(1)
+
+df['label'] = pd.cut(x=df['quality'], bins=[0, 5, 8,],labels=[0, 1])
+
+# Decision Tree Model
+
+As we see there is not any highly correlated variable to quality. That is the reason we cannot use linear regression and we will be choosing decision tree model.
+
+df.set_index('id')
+
+X = df.drop('label', axis = 1)
+
+y = df['label']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+
+dtree = DecisionTreeClassifier()
+
+dtree.fit(X_train,y_train)
+
+predictions = dtree.predict(X_test)
+
+print(confusion_matrix(y_test,predictions))
+print("\n")
+print(classification_report(y_test, predictions))
+
+rfc = RandomForestClassifier(n_estimators = 200)
+
+rfc.fit(X_train, y_train)
+
+rfc_pred = rfc.predict(X_test)
+
+print(confusion_matrix(y_test,rfc_pred))
+print("\n")
+print(classification_report(y_test, rfc_pred))
+
+As we can see from the confusion metrics, decision tree works perfectly fine and there is not any type of errors. We can conclude that we do not need to create random forests for this dataset and we can predict the wine quality with decisiion trees.
