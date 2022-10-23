@@ -10,6 +10,7 @@ from sklearn.linear_model import LinearRegression
 lm = LinearRegression()
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix
+from scipy.stats import chi2_contingency
 
 #Lets check if we are in correct directory
 os.getcwd()
@@ -44,7 +45,7 @@ pd.unique(df['parents_education'])
 df = df.replace('some ','', regex=True)
 df = df.replace(' degree', '', regex=True)
 
-# Descriptive Statistics
+# Explaratory Data Analysis
 
 # Before starting the descriptive statistics lets create a column which will be the average score of each student from 3 exams
 df['avg_score'] = np.mean(df, axis = 1)
@@ -54,31 +55,117 @@ df.head()
 
 df.describe()
 
-# Lets create a box plot for avg score based on gender
-sns.boxplot(x = 'gender', y = 'avg_score', data = df)
+fig, ax = plt.subplots(figsize=(11, 8))
+sns.distplot(df['math_score'], hist=True, bins = 30, kde=False, )
 
-#Lets go a bit deeper to see the differences in each exam
-df.groupby('gender').describe()['math_score']
+fig, ax = plt.subplots(figsize=(11, 8))
+sns.distplot(df['reading_score'], hist=True, bins = 30, kde=False, )
 
-df.groupby('gender').describe()['writing_score']
+fig, ax = plt.subplots(figsize=(11, 8))
+sns.distplot(df['writing_score'], hist=True, bins = 30, kde=False, )
 
-df.groupby('gender').describe()['reading_score']
+fig, ax = plt.subplots(figsize=(11, 8))
+sns.boxplot(y = 'math_score', data = df)
 
-df.groupby('race').describe()['avg_score']
+fig, ax = plt.subplots(figsize=(11, 8))
+sns.boxplot(y = 'reading_score', data = df)
 
-#Lets turn our categorical parent's education level to numeric.
-df['parents_education'].replace(['high school', "associate's", 'college', "bachelor's", "master's"], [1, 2, 3, 4, 5], inplace=True)
+fig, ax = plt.subplots(figsize=(11, 8))
+sns.boxplot(y = 'writing_score', data = df)
 
-sns.boxplot(x = df['parents_education'], y = df['avg_score'])
+df.columns
+
+df['parents_education'].value_counts(normalize = True) * 100
+
+pd.crosstab(columns = df['race'], index = df['gender'], margins = True, normalize = True) * 100
+
+pd.crosstab(index = df['parents_education'], columns = df['race'], margins = True, normalize = True) * 100
+
+pd.crosstab(index = df['prep_course'], columns = df['parents_education'], margins = True, normalize = True) * 100
+
+fig, ax = plt.subplots(figsize=(11, 8))
+sns.scatterplot(x = df['writing_score'], y = df['math_score'], hue = df['prep_course'])
+
+fig, ax = plt.subplots(figsize=(11, 8))
+sns.scatterplot(x = df['writing_score'], y = df['math_score'], hue = df['gender'])
+
+#Lets find out the outliers and remove them from our dataset for math score first
+Q1 = df.math_score.quantile(0.25)
+Q3 = df.math_score.quantile(0.75)
+IQR = Q3-Q1
+IQR
+
+df = df[~((df.math_score <(Q1 - 1.5 * IQR)) | (df.math_score > (Q3 + 1.5 * IQR)))]
+
+# Outliers for reading
+
+Q1 = df.reading_score.quantile(0.25)
+Q3 = df.reading_score.quantile(0.75)
+IQR = Q3-Q1
+IQR
+
+df = df[~((df.reading_score <(Q1 - 1.5 * IQR)) | (df.reading_score > (Q3 + 1.5 * IQR)))]
+
+# Outliers for Writing score
+
+Q1 = df.writing_score.quantile(0.25)
+Q3 = df.writing_score.quantile(0.75)
+IQR = Q3-Q1
+IQR
+
+df = df[~((df.writing_score <(Q1 - 1.5 * IQR)) | (df.writing_score > (Q3 + 1.5 * IQR)))]
+
+# Now lets check our data again with below visualizations as well
+df.info()
+
+fig, ax = plt.subplots(figsize=(11, 8))
+sns.scatterplot(x = df['writing_score'], y = df['math_score'], hue = df['gender'])
+
+fig, ax = plt.subplots(figsize=(11, 8))
+sns.boxplot(y = 'avg_score', data = df, )
+
+Lets try to prove if there is some relationship between parents education and students score. In order to do this we will divide average score into 2 pieces where we will put over median as 1(for high results) 0(low results).
+
+print(df.avg_score.median())
+print(df.avg_score.mean())
+
+df['label'] = pd.cut(x = df['avg_score'], bins=[0, 68.7, 100], labels=['0', '1'])
+
+df.label = df.label.astype('str')
+
+table = pd.crosstab(index = df['parents_education'], columns = df['label'])
+
+table
+
+chi2_contingency(table)
+
+The first value shows the chi square value of 21.39. The chance of such a value or even more extrem, in a sample if there is no association in the population is 0.00026 which is less than 0.05 and we reject Null hyptothtesis. So there is something between parents education and students avg scores that makes it not by chance
+
+Furthermore, 4 degree of freedom have the critical value of 9.49. As we have 21 which is exceeding our critical value, we reject Null hyptothesis.
+
+The same way we will do it for the prep course
+
+table1 = pd.crosstab(index = df['prep_course'], columns = df['label'])
+
+table1
+
+chi2_contingency(table1)
+
+Here we also have p value which is very close to 0, which means there is some relationship between students' average scores and preparation course. We reject the Null Hyptothesis
+
+Furthermore, 1 degree of freedom have the critical value of 3.84. As we have 46 which is exceeding our critical value, we reject Null hyptothesis.
+
+# Linear Model Development to predict writing score exams after reading exams
 
 #Lets create a scatter plot with regression line to get sense if writing and reading is related to each other
-sns.regplot(x = df['writing_score'], y = df['reading_score'], data = df, line_kws={"color": "black"})
+sns.regplot(x = df['reading_score'], y = df['writing_score'], data = df, line_kws={"color": "black"})
 
 #Lets see the peaarson coefficient and p statistic value to see if the correlation is statistically significant or not(we can see below strong positive relationship which is statistically significant)
 pearson_coef, p_value = stats.pearsonr(df['writing_score'], df['reading_score'])
 print(pearson_coef, p_value)
 
-# Linear Model Development
+#As the residuals are evenly distributed along the mean axes we can conclude that linear model is a great fit to our data.
+sns.residplot(df['reading_score'], df['writing_score'])
 
 #Lets develop our model and then show our equation for predicting the writing score
 X = df[['reading_score']]
@@ -87,9 +174,8 @@ lm.fit(X, Y)
 Yhat = lm.predict(X)
 print ("writing_score = ", "reading_score", "*", lm.coef_, "+", lm.intercept_)
 
-#As the residuals are evenly distributed along the mean axes we can conclude that linear model is a great fit to our data.
-sns.residplot(df['reading_score'], df['writing_score'])
-
 # Finally lets draw a distribution plot in order to compare the actual writing score with our linear model that we developed based on reading.
 ax1 = sns.distplot(df['writing_score'], hist = False, color = 'r', label = "Actual Writing Scores")
 sns.distplot(Yhat, hist= False, color = 'b', label = "Fitted Value", ax = ax1)
+
+As we can see our model is good enough to take it into consideration to predict the writing score
