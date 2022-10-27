@@ -1,0 +1,73 @@
+import os
+import random
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.datasets import make_classification
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import PowerTransformer
+from sklearn.cluster import KMeans
+fixed_random_state = random.seed(42)
+import umap
+from sklearn.datasets import load_digits
+%matplotlib inline
+
+pip install umap-learn
+
+os.getcwd()
+
+os.chdir('C:\\Users\\tural\\OneDrive\\Desktop\\Study Materials\\Datasets')
+
+df= pd.read_csv('wine-clustering.csv')
+
+df.head()
+
+df.isna().sum()
+
+for col in df.columns:
+    fig, axs = plt.subplots(figsize = (4,4))
+    sns.histplot(data=df, x=col, kde=True, ax=axs)
+    plt.show()
+
+X = df.copy()
+X = StandardScaler().fit_transform(df)
+X = PowerTransformer(standardize = False).fit_transform(X)
+
+X = pd.DataFrame(X, columns = df.columns)
+X.head()
+
+for col in X.columns:
+    fig, axs = plt.subplots(figsize = (4,4))
+    sns.histplot(data=X, x=col, kde=True, ax=axs)
+    plt.show()
+
+distortions = []
+K = range(1,10)
+for k in K:
+    kmeanModel = KMeans(n_clusters=k)
+    kmeanModel.fit(X)
+    distortions.append(kmeanModel.inertia_)
+
+plt.figure(figsize=(16,8))
+plt.plot(K, distortions, 'bx-')
+plt.xlabel('k')
+plt.ylabel('Distortion')
+plt.title('The Elbow Method showing the optimal k')
+plt.show()
+
+labels = KMeans(n_clusters=3, random_state=fixed_random_state).fit_predict(X)
+
+reducer = umap.UMAP(n_components=2, n_neighbors=15, n_jobs=-1, random_state=fixed_random_state)
+embedding = reducer.fit_transform(X)
+
+plt.figure(figsize = (17,10))
+sns.scatterplot(x=embedding[:, 0], y=embedding[:, 1], hue=labels, palette=['black', 'red', 'blue'])
+plt.legend(title="cluster ID")
+plt.show()
