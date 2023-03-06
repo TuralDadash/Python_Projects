@@ -1,0 +1,150 @@
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.datasets import make_classification
+from sklearn.tree import DecisionTreeClassifier
+%matplotlib inline
+
+#Setting up directory and uploading the dataset
+os.chdir("C:\\Users\\tural\\OneDrive\\Desktop\\Study Materials")
+df = pd.read_csv('movie_metadata.csv')
+df.head(10)
+
+df.drop(['color'], axis=1, inplace = True)
+
+# Exploring the Dataset
+
+#Checking the data types and columns
+df.info()
+
+# Checking the number of NAs
+df.isna().sum().sum()
+
+df.imdb_score.isna().sum()
+
+df.value_counts('country')
+
+df.value_counts('director_name')
+
+df[df['imdb_score'] > 8].value_counts('director_name')
+
+df.value_counts('actor_2_name')
+
+df[df['imdb_score'] > 8].value_counts('actor_2_name')
+
+# Checking the correlation between continous variables to see if linear regression can be used or not
+sns.set(rc = {'figure.figsize':(17,10)})
+sns.heatmap(df.corr(), annot = True)
+
+* As there is no any significantly related variable to imdb score, we will not use linear regression. Instead we can create groups by the imdb scores as high, low, medium and use decision tree model.
+
+# Detecting the cut points for creating groups in imdb score
+fig, ax = plt.subplots(figsize=(10, 8))
+sns.boxplot(y = 'imdb_score', data = df, )
+print(df.imdb_score.describe())
+
+* We will use upper quartile and above for High , between upper and lower quartile for Medium, beneath than the lower quartile for low
+
+
+bins = [0, 5.8, 7.2, np.inf]
+names = ['Low', 'Medium', 'High']
+df['imdb_cat'] = pd.cut(df['imdb_score'], bins, labels=names)
+
+# Getting the continous variables
+df_numeric = df._get_numeric_data()
+df_numeric['imdb_cat'] = df['imdb_cat']
+df_numeric.drop(["imdb_score", 'title_year'], axis = 1, inplace = True)
+
+df_numeric.value_counts('imdb_cat')
+
+df_numeric.isna().sum().sum()
+
+df_numeric.isna().sum()
+
+df_numeric.dropna(inplace=True)
+
+df_numeric.info()
+
+df_numeric.iloc[:, 8]
+
+# Decision Trees
+
+X = df_numeric.drop(['imdb_cat'], axis = 1)
+y = df_numeric['imdb_cat']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, stratify= y)
+
+dtree = DecisionTreeClassifier()
+
+dtree.fit(X_train,y_train)
+
+predictions_tree = dtree.predict(X_test)
+
+print(confusion_matrix(y_test,predictions_tree))
+print("\n")
+print(classification_report(y_test, predictions_tree))
+
+importance = dtree.feature_importances_
+
+# summarize feature importance
+for i,v in enumerate(importance):
+ print('Feature: %0d, Score: %.5f' % (i,v))
+# plot feature importance
+plt.bar([x for x in range(len(importance))], importance)
+plt.show()
+
+# Random Forest
+
+X = df_numeric.drop(['imdb_cat'], axis = 1)
+
+rfc = RandomForestClassifier(n_estimators=100)
+rfc.fit(X_train, y_train)
+
+rfc_pred = rfc.predict(X_test)
+
+print(confusion_matrix(y_test,rfc_pred))
+print("\n")
+print(classification_report(y_test, rfc_pred))
+
+# get importance
+importance = rfc.feature_importances_
+# summarize feature importance
+for i,v in enumerate(importance):
+ print('Feature: %0d, Score: %.5f' % (i,v))
+# plot feature importance
+plt.bar([x for x in range(len(importance))], importance)
+plt.show()
+
+# Linear Regression
+
+It was already obvious that Linear regression would not be a good fit from the heatmap. Below is just for the sake of showing what could be done if the data had linear pattern.
+
+from sklearn.linear_model import LinearRegression
+lm = LinearRegression()
+
+fig, ax = plt.subplots(figsize=(11, 8))
+sns.scatterplot(x = df['num_voted_users'], y = df['imdb_score'])
+
+fig, ax = plt.subplots(figsize=(11, 8))
+sns.scatterplot(x = df['num_critic_for_reviews'], y = df['imdb_score'])
+
+df = df.fillna(df.median())
+
+df.columns
+
+#Lets develop our model and then show our equation for predicting the ratings
+X = df[['num_critic_for_reviews', "duration", "num_voted_users", "num_user_for_reviews", "movie_facebook_likes"]]
+Y = df['imdb_score']
+lm.fit(X, Y)
+Yhat = lm.predict(X)
+
+# Finally lets draw a distribution plot in order to compare the actual score with our linear model that we developed.
+ax1 = sns.distplot(df['imdb_score'], hist = False, color = 'r', label = "Actual Writing Scores")
+sns.distplot(Yhat, hist= False, color = 'b', label = "Fitted Value", ax = ax1)
